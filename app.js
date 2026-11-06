@@ -1,5 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
 import { getDatabase, ref, set, get, push, child } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
+// ✨ Firebase Auth 모듈 불러오기
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -15,6 +17,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+// ✨ Firebase Auth 및 구글 공급업체 초기화
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
 
 // 관리자 해시 (seongwan / 123456)
 const ADMIN_ID_HASH = "d224d08432b0a887caed72ef91fec1eddb4f0f670f5e1f0e4b8686d1ae6fa87e";
@@ -33,82 +38,15 @@ let currentUser = JSON.parse(sessionStorage.getItem('quiz_session_user')) || nul
 let currentActiveQuiz = null;
 let scoreChartInstance = null;
 
-// Kakao SDK 안전 초기화
-function initKakaoSDK() {
-  const KAKAO_KEY = "f5672116e00acade1409749490575059";
-  if (window.Kakao && !window.Kakao.isInitialized()) {
-    window.Kakao.init(KAKAO_KEY);
-    console.log("Kakao SDK Initialized Success");
-  }
-}
-
-// ✨ HTML onclick에서 직접 호출할 수 있도록 window 객체에 등록
-window.handleKakaoLogin = function() {
-  initKakaoSDK();
-
-  if (!window.Kakao || !window.Kakao.Auth) {
-    alert("카카오 SDK를 불러오는 중입니다. 페이지를 다시 고침 후 시도해 보세요.");
-    return;
-  }
-
-  window.Kakao.Auth.login({
-    success: function (authObj) {
-      window.Kakao.API.request({
-        url: '/v2/user/me',
-        success: async function (res) {
-          const kakaoId = `kakao_${res.id}`;
-          const kakaoName = res.kakao_account?.profile?.nickname || '카카오 사용자';
-
-          try {
-            const userRef = ref(db, `users/${kakaoId}`);
-            const snapshot = await get(userRef);
-
-            let studentId = "카카오회원";
-
-            if (!snapshot.exists()) {
-              const inputStudentId = prompt(`${kakaoName}님, 학번을 입력해 주세요:`, "20260000");
-              if (inputStudentId) studentId = inputStudentId.trim();
-
-              await set(userRef, {
-                password: 'KAKAO_SOCIAL_USER',
-                name: kakaoName,
-                studentId: studentId,
-                createdAt: Date.now()
-              });
-            } else {
-              studentId = snapshot.val().studentId || studentId;
-            }
-
-            currentUser = {
-              id: kakaoId,
-              name: kakaoName,
-              studentId: studentId,
-              role: 'member'
-            };
-
-            sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
-            showAppMain();
-          } catch (err) {
-            console.error("카카오 회원 DB 처리 실패:", err);
-            alert("로그인 처리 중 오류가 발생했습니다.");
-          }
-        },
-        fail: function (error) {
-          console.error("사용자 정보 조회 실패:", error);
-        }
-      });
-    },
-    fail: function (err) {
-      console.error("카카오 로그인 실패:", err);
-      alert("카카오 로그인 창을 불러오지 못했습니다.");
-    }
-  });
-};
-
 // DOM Initialization
 window.addEventListener('DOMContentLoaded', () => {
-  initKakaoSDK();
   initApp();
+
+  // ✨ 구글 로그인 버튼 이벤트 연결
+  const btnGoogle = document.getElementById('btn-google-login');
+  if (btnGoogle) {
+    btnGoogle.addEventListener('click', handleGoogleLogin);
+  }
 });
 
 function initApp() {
@@ -134,7 +72,53 @@ function showAppMain() {
   loadQuizzesFromDB();
 }
 
-// Tab Switch
+// ✨ 구글 로그인 처리 함수
+async function handleGoogleLogin() {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+
+    const googleId = `google_${user.uid}`;
+    const googleName = user.displayName || "구글 사용자";
+
+    const userRef = ref(db, `users/${googleId}`);
+    const snapshot = await get(userRef);
+
+    let studentId = "구글회원";
+
+    if (!snapshot.exists()) {
+      const inputStudentId = prompt(`${googleName}님 환영합니다! 학번을 입력해 주세요:`, "20260000");
+      if (inputStudentId) studentId = inputStudentId.trim();
+
+      await set(userRef, {
+        password: 'GOOGLE_SOCIAL_USER',
+        name: googleName,
+        studentId: studentId,
+        email: user.email,
+        createdAt: Date.now()
+      });
+    } else {
+      studentId = snapshot.val().studentId || studentId;
+    }
+
+    currentUser = {
+      id: googleId,
+      name: googleName,
+      studentId: studentId,
+      role: 'member'
+    };
+
+    sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
+    showAppMain();
+  } catch (error) {
+    console.error("구글 로그인 실패:", error);
+    if (error.code !== 'auth/popup-closed-by-user') {
+      alert("구글 로그인 실패: " + error.message);
+    }
+  }
+}
+
+// 탭 전환 이벤트
 document.getElementById('tab-login')?.addEventListener('click', (e) => {
   e.preventDefault();
   document.getElementById('tab-login').className = "w-1/2 py-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold";
@@ -151,7 +135,7 @@ document.getElementById('tab-signup')?.addEventListener('click', (e) => {
   document.getElementById('form-login').classList.add('hidden');
 });
 
-// Login Form Submit
+// 일반 로그인 처리
 document.getElementById('form-login')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const idInput = document.getElementById('login-id').value.trim();
@@ -207,7 +191,7 @@ document.getElementById('form-login')?.addEventListener('submit', async (e) => {
   }
 });
 
-// Signup Form Submit
+// 회원가입 처리
 document.getElementById('form-signup')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = document.getElementById('signup-id').value.trim();
@@ -250,7 +234,7 @@ document.getElementById('form-signup')?.addEventListener('submit', async (e) => 
   }
 });
 
-// Update Header
+// Header UI Sync
 function updateAuthHeader() {
   if (!currentUser) return;
   document.getElementById('welcome-title').textContent = `반갑습니다, ${currentUser.name}님!`;
@@ -300,7 +284,7 @@ document.querySelectorAll('.btn-close-modal').forEach(btn => {
   });
 });
 
-// Create Quiz
+// Admin Quiz Create
 document.getElementById('form-create-quiz')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const chapter = document.getElementById('input-chapter-name').value.trim();
@@ -455,7 +439,7 @@ document.getElementById('form-solve-quiz')?.addEventListener('submit', async (e)
   }
 
   document.getElementById('view-quiz-solve').classList.add('hidden');
-  document.getElementById('view-quiz-result').classList.add('hidden');
+  document.getElementById('view-quiz-result').classList.remove('hidden');
 });
 
 // Load Stats
