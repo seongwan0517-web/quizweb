@@ -8,151 +8,239 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js CDN (대시보드 차트용) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- 커스텀 스타일 -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
 
-  <!-- GNB / Header -->
-  <header class="bg-indigo-600 text-white shadow-md">
-    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
-      <div class="flex items-center space-x-3 cursor-pointer" id="btn-home">
-        <i class="fa-solid fa-graduation-cap text-2xl"></i>
-        <h1 class="text-xl font-bold tracking-tight">스마트 퀴즈 웹</h1>
+  <!-- Screen 0: 로그인 / 회원가입 화면 (최초 진입 시 표시) -->
+  <section id="view-auth" class="min-h-screen flex items-center justify-center p-4 bg-slate-900">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 space-y-6">
+      <div class="text-center space-y-2">
+        <div class="inline-flex items-center justify-center w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl mb-2">
+          <i class="fa-solid fa-graduation-cap text-3xl"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-800" id="auth-title">스마트 퀴즈 로그인</h2>
+        <p class="text-slate-500 text-xs" id="auth-subtitle">아이디와 비밀번호를 입력해 주세용.</p>
       </div>
-      
-      <!-- User Info / Nav -->
-      <div class="flex items-center space-x-4">
-        <span id="db-status-badge" class="text-xs px-2.5 py-1 rounded-full bg-emerald-500 text-white font-medium flex items-center gap-1">
-          <i class="fa-solid fa-cloud"></i> DB 연결 완료
-        </span>
-        <div id="auth-section" class="flex items-center space-x-2"></div>
+
+      <!-- Tab Buttons -->
+      <div class="flex border-b text-sm font-medium text-center">
+        <button id="tab-login" class="w-1/2 py-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold">로그인</button>
+        <button id="tab-signup" class="w-1/2 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600">회원가입</button>
       </div>
-    </div>
-  </header>
 
-  <!-- Main Content Container -->
-  <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full">
-
-    <!-- Screen 1: Dashboard -->
-    <section id="view-dashboard" class="space-y-6">
-      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <!-- Login Form -->
+      <form id="form-login" class="space-y-4">
         <div>
-          <h2 class="text-2xl font-bold text-slate-800" id="welcome-title">안녕하세요!</h2>
-          <p class="text-slate-500 text-sm mt-1" id="welcome-sub">단원별 퀴즈를 풀고 나의 실력을 점검해보세요.</p>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">아이디</label>
+          <input type="text" id="login-id" required placeholder="아이디 입력" class="w-full px-3.5 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
         </div>
-        <div id="admin-action-area" class="hidden">
-          <button id="btn-open-create-modal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-lg shadow transition flex items-center gap-2">
-            <i class="fa-solid fa-plus"></i> 새 퀴즈/단원 출제
-          </button>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">비밀번호</label>
+          <input type="password" id="login-pw" required placeholder="비밀번호 입력" class="w-full px-3.5 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
         </div>
-      </div>
-
-      <!-- User Stats Summary -->
-      <div id="user-stats-card" class="hidden bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl p-6 shadow-md grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="text-center sm:text-left">
-          <p class="text-indigo-100 text-sm">누적 응시 횟수</p>
-          <p class="text-3xl font-extrabold mt-1" id="stat-total-trials">0회</p>
-        </div>
-        <div class="text-center sm:text-left">
-          <p class="text-indigo-100 text-sm">평균 점수</p>
-          <p class="text-3xl font-extrabold mt-1" id="stat-avg-score">0점</p>
-        </div>
-        <div class="text-center sm:text-left">
-          <p class="text-indigo-100 text-sm">완료한 단원</p>
-          <p class="text-3xl font-extrabold mt-1" id="stat-completed-chapters">0개</p>
-        </div>
-      </div>
-
-      <!-- Chapter Grid -->
-      <div>
-        <h3 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
-          <i class="fa-solid fa-book-open text-indigo-600"></i> 학습 단원 목록
-        </h3>
-        <div id="chapter-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div class="col-span-full py-12 text-center text-slate-400">
-            <i class="fa-solid fa-spinner animate-spin text-3xl mb-2"></i>
-            <p>퀴즈 단원을 불러오는 중입니다...</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Screen 2: Quiz Solving View -->
-    <section id="view-quiz-solve" class="hidden max-w-3xl mx-auto space-y-6">
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div class="flex justify-between items-center pb-4 mb-6 border-b border-slate-100">
-          <div>
-            <span class="text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-md" id="solve-chapter-title">단원명</span>
-            <h3 class="text-xl font-bold text-slate-800 mt-2" id="solve-quiz-title">퀴즈 제목</h3>
-          </div>
-          <button id="btn-cancel-quiz" class="text-slate-400 hover:text-slate-600">
-            <i class="fa-solid fa-xmark text-2xl"></i>
-          </button>
-        </div>
-
-        <form id="form-solve-quiz" class="space-y-6">
-          <div id="questions-container" class="space-y-8"></div>
-          <div class="pt-6 border-t border-slate-100 flex justify-end">
-            <button type="submit" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 py-3 rounded-lg shadow-md transition">
-              <i class="fa-solid fa-paper-plane mr-2"></i> 답안 제출하기
-            </button>
-          </div>
-        </form>
-      </div>
-    </section>
-
-    <!-- Screen 3: Quiz Result View -->
-    <section id="view-quiz-result" class="hidden max-w-3xl mx-auto space-y-6">
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
-        <div class="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full mb-4">
-          <i class="fa-solid fa-trophy text-4xl"></i>
-        </div>
-        <h2 class="text-3xl font-extrabold text-slate-800">채점이 완료되었습니다!</h2>
-        <p class="text-slate-500 mt-1">수고하셨습니다. 제출된 결과입니다.</p>
-
-        <div class="bg-slate-50 rounded-xl p-6 my-6 inline-block w-full max-w-md">
-          <div class="text-slate-500 text-sm">최종 획득 점수</div>
-          <div class="text-5xl font-black text-indigo-600 mt-2"><span id="result-score">0</span> <span class="text-2xl font-normal text-slate-400">/ <span id="result-max-score">100</span>점</span></div>
-        </div>
-
-        <div id="result-feedback-container" class="text-left space-y-4 my-8"></div>
-
-        <button id="btn-back-to-dashboard" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2.5 rounded-lg transition">
-          단원 목록으로 돌아가기
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition text-sm shadow-md">
+          로그인
         </button>
-      </div>
-    </section>
+      </form>
 
-  </main>
-
-  <!-- Modal 1: Auth -->
-  <div id="modal-auth" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="text-lg font-bold text-slate-800">로그인 / 회원가입</h3>
-        <button class="btn-close-modal text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-      <form id="form-auth" class="space-y-4">
+      <!-- Signup Form (Hidden by default) -->
+      <form id="form-signup" class="space-y-4 hidden">
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">사용자 이름 (닉네임)</label>
-          <input type="text" id="auth-username" required placeholder="홍길동" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+          <label class="block text-xs font-semibold text-slate-600 mb-1">아이디</label>
+          <input type="text" id="signup-id" required placeholder="아이디 입력" class="w-full px-3.5 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">역할 선택</label>
-          <select id="auth-role" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white">
-            <option value="member">일반 회원 (퀴즈 풀이)</option>
-            <option value="admin">운영진 (퀴즈 출제)</option>
-          </select>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">비밀번호</label>
+          <input type="password" id="signup-pw" required placeholder="비밀번호 입력" class="w-full px-3.5 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
         </div>
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition text-sm">
-          시작하기
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">이름</label>
+          <input type="text" id="signup-name" required placeholder="예: 홍길동" class="w-full px-3.5 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">학번</label>
+          <input type="text" id="signup-student-id" required placeholder="예: 20261234" class="w-full px-3.5 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+        </div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition text-sm shadow-md">
+          회원가입 완료
         </button>
       </form>
     </div>
+  </section>
+
+  <!-- App Main Layout (Hidden until logged in) -->
+  <div id="app-content" class="hidden flex-col min-h-screen">
+    <!-- GNB / Header -->
+    <header class="bg-indigo-600 text-white shadow-md">
+      <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center space-x-3 cursor-pointer" id="btn-home">
+          <i class="fa-solid fa-graduation-cap text-2xl"></i>
+          <h1 class="text-xl font-bold tracking-tight">스마트 퀴즈 웹</h1>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+          <span id="db-status-badge" class="text-xs px-2.5 py-1 rounded-full bg-emerald-500 text-white font-medium flex items-center gap-1">
+            <i class="fa-solid fa-cloud"></i> DB 연결됨
+          </span>
+          <div id="auth-section" class="flex items-center space-x-3"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full">
+
+      <!-- Screen 1: Dashboard -->
+      <section id="view-dashboard" class="space-y-8">
+        <!-- Welcome Banner -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-slate-800" id="welcome-title">안녕하세요!</h2>
+            <p class="text-slate-500 text-xs mt-1" id="welcome-sub">학번 정보와 나의 학습 현황을 확인하세요.</p>
+          </div>
+          <div id="admin-action-area" class="hidden">
+            <button id="btn-open-create-modal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-lg shadow transition flex items-center gap-2 text-sm">
+              <i class="fa-solid fa-plus"></i> 새 퀴즈/단원 출제
+            </button>
+          </div>
+        </div>
+
+        <!-- 📊 요약 차트 및 통계 도표 (요청사항 4) -->
+        <div id="member-stats-section" class="space-y-6">
+          <h3 class="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <i class="fa-solid fa-chart-line text-indigo-600"></i> 나의 평가 기록 요약
+          </h3>
+          
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+              <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                <i class="fa-solid fa-rotate-right text-xl"></i>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">총 응시 횟수</p>
+                <p class="text-2xl font-extrabold text-slate-800 mt-0.5" id="stat-total-trials">0회</p>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+              <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+                <i class="fa-solid fa-award text-xl"></i>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">평균 점수</p>
+                <p class="text-2xl font-extrabold text-slate-800 mt-0.5" id="stat-avg-score">0점</p>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+              <div class="p-3 bg-purple-50 text-purple-600 rounded-lg">
+                <i class="fa-solid fa-book-bookmark text-xl"></i>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">완료 단원</p>
+                <p class="text-2xl font-extrabold text-slate-800 mt-0.5" id="stat-completed-chapters">0개</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Score Trend Chart & Records Table -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+              <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">최근 점수 변화 추이</h4>
+              <div class="h-56">
+                <canvas id="scoreTrendChart"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+              <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">최근 평가 응시 기록</h4>
+              <div class="overflow-y-auto flex-1 max-h-56">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-50 text-slate-500 border-b">
+                    <tr>
+                      <th class="p-2">단원/퀴즈</th>
+                      <th class="p-2">점수</th>
+                      <th class="p-2">날짜</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-user-records" class="divide-y text-slate-700">
+                    <tr><td colspan="3" class="p-4 text-center text-slate-400">응시 기록이 없습니다.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 📚 응시 가능 단원 목록 (요청사항 4) -->
+        <div class="pt-4">
+          <h3 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-layer-group text-indigo-600"></i> 응시 가능한 단원 목록
+          </h3>
+          <div id="chapter-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full py-12 text-center text-slate-400">
+              <i class="fa-solid fa-spinner animate-spin text-3xl mb-2"></i>
+              <p>단원을 불러오는 중입니다...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Screen 2: Quiz Solve -->
+      <section id="view-quiz-solve" class="hidden max-w-3xl mx-auto space-y-6">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div class="flex justify-between items-center pb-4 mb-6 border-b border-slate-100">
+            <div>
+              <span class="text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-md" id="solve-chapter-title">단원명</span>
+              <h3 class="text-xl font-bold text-slate-800 mt-2" id="solve-quiz-title">퀴즈 제목</h3>
+            </div>
+            <button id="btn-cancel-quiz" class="text-slate-400 hover:text-slate-600">
+              <i class="fa-solid fa-xmark text-2xl"></i>
+            </button>
+          </div>
+
+          <form id="form-solve-quiz" class="space-y-6">
+            <div id="questions-container" class="space-y-8"></div>
+            <div class="pt-6 border-t border-slate-100 flex justify-end">
+              <button type="submit" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 py-3 rounded-lg shadow-md transition">
+                <i class="fa-solid fa-paper-plane mr-2"></i> 답안 제출하기
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Screen 3: Quiz Result -->
+      <section id="view-quiz-result" class="hidden max-w-3xl mx-auto space-y-6">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+          <div class="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full mb-4">
+            <i class="fa-solid fa-trophy text-4xl"></i>
+          </div>
+          <h2 class="text-3xl font-extrabold text-slate-800">채점이 완료되었습니다!</h2>
+          <p class="text-slate-500 mt-1">수고하셨습니다. 제출된 결과입니다.</p>
+
+          <div class="bg-slate-50 rounded-xl p-6 my-6 inline-block w-full max-w-md">
+            <div class="text-slate-500 text-sm">최종 획득 점수</div>
+            <div class="text-5xl font-black text-indigo-600 mt-2"><span id="result-score">0</span> <span class="text-2xl font-normal text-slate-400">/ 100점</span></div>
+          </div>
+
+          <div id="result-feedback-container" class="text-left space-y-4 my-8"></div>
+
+          <button id="btn-back-to-dashboard" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2.5 rounded-lg transition">
+            대시보드로 돌아가기
+          </button>
+        </div>
+      </section>
+
+    </main>
   </div>
 
-  <!-- Modal 2: Admin Create Quiz -->
+  <!-- Modal: Admin Create Quiz -->
   <div id="modal-create-quiz" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4 overflow-y-auto">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 space-y-6 my-8">
       <div class="flex justify-between items-center border-b pb-3">
@@ -211,7 +299,6 @@
     </div>
   </div>
 
-  <!-- JavaScript 모듈 연동 (HTML에서 스크립트 내용 제거) -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
