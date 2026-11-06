@@ -16,13 +16,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ✨ 카카오 SDK 초기화 (제공해주신 자바스크립트 키)
-const KAKAO_JAVASCRIPT_KEY = "f5672116e00acade1409749490575059";
-if (window.Kakao && !window.Kakao.isInitialized()) {
-  window.Kakao.init(KAKAO_JAVASCRIPT_KEY);
-}
-
-// 🔒 관리자 계정 해시
+// 🔒 관리자 계정 해시 (seongwan / 123456)
 const ADMIN_ID_HASH = "d224d08432b0a887caed72ef91fec1eddb4f0f670f5e1f0e4b8686d1ae6fa87e";
 const ADMIN_PW_HASH = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
 
@@ -39,27 +33,25 @@ let currentUser = JSON.parse(sessionStorage.getItem('quiz_session_user')) || nul
 let currentActiveQuiz = null;
 let scoreChartInstance = null;
 
-// DOM Elements
-const viewAuth = document.getElementById('view-auth');
-const appContent = document.getElementById('app-content');
-const tabLogin = document.getElementById('tab-login');
-const tabSignup = document.getElementById('tab-signup');
-const formLogin = document.getElementById('form-login');
-const formSignup = document.getElementById('form-signup');
+// 안전한 Kakao SDK 초기화 함수
+function initKakaoSDK() {
+  const KAKAO_JAVASCRIPT_KEY = "f5672116e00acade1409749490575059";
+  if (window.Kakao && !window.Kakao.isInitialized()) {
+    window.Kakao.init(KAKAO_JAVASCRIPT_KEY);
+    console.log("Kakao SDK Initialized");
+  }
+}
 
-const welcomeTitle = document.getElementById('welcome-title');
-const welcomeSub = document.getElementById('welcome-sub');
-const adminActionArea = document.getElementById('admin-action-area');
-const memberStatsSection = document.getElementById('member-stats-section');
-const chapterListContainer = document.getElementById('chapter-list-container');
-const authSection = document.getElementById('auth-section');
-
-const viewDashboard = document.getElementById('view-dashboard');
-const viewQuizSolve = document.getElementById('view-quiz-solve');
-const viewQuizResult = document.getElementById('view-quiz-result');
-
+// DOM 로드 완료 후 실행 (버튼 클릭 이벤트 바인딩 보장)
 window.addEventListener('DOMContentLoaded', () => {
+  initKakaoSDK();
   initApp();
+
+  // Kakao Login Button Event
+  const kakaoBtn = document.getElementById('btn-kakao-login');
+  if (kakaoBtn) {
+    kakaoBtn.addEventListener('click', handleKakaoLogin);
+  }
 });
 
 function initApp() {
@@ -71,12 +63,13 @@ function initApp() {
 }
 
 function showAuthScreen() {
-  viewAuth.classList.remove('hidden');
-  appContent.classList.add('hidden');
+  document.getElementById('view-auth').classList.remove('hidden');
+  document.getElementById('app-content').classList.add('hidden');
 }
 
 function showAppMain() {
-  viewAuth.classList.add('hidden');
+  document.getElementById('view-auth').classList.add('hidden');
+  const appContent = document.getElementById('app-content');
   appContent.classList.remove('hidden');
   appContent.classList.add('flex');
   updateAuthHeader();
@@ -84,34 +77,34 @@ function showAppMain() {
   loadQuizzesFromDB();
 }
 
-// Tab Events
-tabLogin.setAttribute('type', 'button');
-tabSignup.setAttribute('type', 'button');
-
-tabLogin.addEventListener('click', (e) => {
+// 탭 전환 이벤트
+document.getElementById('tab-login')?.addEventListener('click', (e) => {
   e.preventDefault();
-  tabLogin.className = "w-1/2 py-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold";
-  tabSignup.className = "w-1/2 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600";
-  formLogin.classList.remove('hidden');
-  formSignup.classList.add('hidden');
+  document.getElementById('tab-login').className = "w-1/2 py-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold";
+  document.getElementById('tab-signup').className = "w-1/2 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600";
+  document.getElementById('form-login').classList.remove('hidden');
+  document.getElementById('form-signup').classList.add('hidden');
 });
 
-tabSignup.addEventListener('click', (e) => {
+document.getElementById('tab-signup')?.addEventListener('click', (e) => {
   e.preventDefault();
-  tabSignup.className = "w-1/2 py-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold";
-  tabLogin.className = "w-1/2 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600";
-  formSignup.classList.remove('hidden');
-  formLogin.classList.add('hidden');
+  document.getElementById('tab-signup').className = "w-1/2 py-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold";
+  document.getElementById('tab-login').className = "w-1/2 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600";
+  document.getElementById('form-signup').classList.remove('hidden');
+  document.getElementById('form-login').classList.add('hidden');
 });
 
-// ✨ 카카오 로그인 버튼 핸들러
-document.getElementById('btn-kakao-login').addEventListener('click', () => {
-  if (!window.Kakao) {
-    alert('카카오 SDK 로드에 실패했습니다.');
+// 카카오 로그인 핸들러
+function handleKakaoLogin() {
+  if (!window.Kakao || !window.Kakao.isInitialized()) {
+    initKakaoSDK();
+  }
+
+  if (!window.Kakao || !window.Kakao.Auth) {
+    alert('카카오 SDK를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
     return;
   }
 
-  // 팝업 형태 간편 로그인 수행
   window.Kakao.Auth.login({
     success: function (authObj) {
       window.Kakao.API.request({
@@ -120,7 +113,6 @@ document.getElementById('btn-kakao-login').addEventListener('click', () => {
           const kakaoId = `kakao_${res.id}`;
           const kakaoName = res.kakao_account?.profile?.nickname || '카카오 사용자';
 
-          // Firebase DB에서 카카오 사용자 정보 조회 및 동기화
           try {
             const userRef = ref(db, `users/${kakaoId}`);
             const snapshot = await get(userRef);
@@ -128,7 +120,6 @@ document.getElementById('btn-kakao-login').addEventListener('click', () => {
             let studentId = "카카오회원";
 
             if (!snapshot.exists()) {
-              // 최초 카카오 접속 시 학번 등록 안내
               const inputStudentId = prompt(`${kakaoName}님, 학번을 입력해 주세요:`, "20260000");
               if (inputStudentId) studentId = inputStudentId.trim();
 
@@ -157,7 +148,7 @@ document.getElementById('btn-kakao-login').addEventListener('click', () => {
           }
         },
         fail: function (error) {
-          console.error("카카오 사용자 정보 조회 실패:", error);
+          console.error("사용자 정보 요청 실패:", error);
         }
       });
     },
@@ -165,10 +156,10 @@ document.getElementById('btn-kakao-login').addEventListener('click', () => {
       console.error("카카오 로그인 실패:", err);
     }
   });
-});
+}
 
-// 로그인 처리
-formLogin.addEventListener('submit', async (e) => {
+// 아이디/비밀번호 로그인
+document.getElementById('form-login')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const idInput = document.getElementById('login-id').value.trim();
   const pwInput = document.getElementById('login-pw').value.trim();
@@ -219,12 +210,12 @@ formLogin.addEventListener('submit', async (e) => {
     }
   } catch (err) {
     console.error("로그인 에러:", err);
-    alert('로그인 처리 중 오류가 발생했습니다: ' + err.message);
+    alert('로그인 처리 중 오류가 발생했습니다.');
   }
 });
 
-// 회원가입 처리
-formSignup.addEventListener('submit', async (e) => {
+// 회원가입
+document.getElementById('form-signup')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = document.getElementById('signup-id').value.trim();
   const pw = document.getElementById('signup-pw').value.trim();
@@ -257,12 +248,11 @@ formSignup.addEventListener('submit', async (e) => {
       createdAt: Date.now()
     });
 
-    alert('회원가입이 성공적으로 완료되었습니다! 로그인해 주세요.');
-    tabLogin.click();
+    alert('회원가입이 완료되었습니다! 로그인해 주세요.');
+    document.getElementById('tab-login').click();
     document.getElementById('login-id').value = id;
-    formSignup.reset();
+    document.getElementById('form-signup').reset();
   } catch (err) {
-    console.error("회원가입 오류:", err);
     alert('회원가입 실패: ' + err.message);
   }
 });
@@ -270,11 +260,12 @@ formSignup.addEventListener('submit', async (e) => {
 // Header UI Sync
 function updateAuthHeader() {
   if (!currentUser) return;
-  welcomeTitle.textContent = `반갑습니다, ${currentUser.name}님!`;
-  welcomeSub.textContent = currentUser.role === 'admin' 
+  document.getElementById('welcome-title').textContent = `반갑습니다, ${currentUser.name}님!`;
+  document.getElementById('welcome-sub').textContent = currentUser.role === 'admin' 
     ? '관리자 모드로 접속 중입니다. 퀴즈 출제 및 관리가 가능합니다.' 
     : `학번: ${currentUser.studentId} | 평가 기록을 점검하고 퀴즈를 풀어보세요.`;
 
+  const authSection = document.getElementById('auth-section');
   authSection.innerHTML = `
     <span class="text-xs bg-indigo-700 text-indigo-100 px-3 py-1 rounded-full font-medium">
       ${currentUser.name} (${currentUser.role === 'admin' ? '관리자' : currentUser.studentId})
@@ -290,21 +281,23 @@ function updateAuthHeader() {
     showAuthScreen();
   });
 
+  const adminArea = document.getElementById('admin-action-area');
+  const memberArea = document.getElementById('member-stats-section');
   if (currentUser.role === 'admin') {
-    adminActionArea.classList.remove('hidden');
-    memberStatsSection.classList.add('hidden');
+    adminArea.classList.remove('hidden');
+    memberArea.classList.add('hidden');
   } else {
-    adminActionArea.classList.add('hidden');
-    memberStatsSection.classList.remove('hidden');
+    adminArea.classList.add('hidden');
+    memberArea.classList.remove('hidden');
     loadUserStats();
   }
 }
 
-// Global Nav & Modal Event Listeners
-document.getElementById('btn-home').addEventListener('click', showDashboardView);
-document.getElementById('btn-cancel-quiz').addEventListener('click', showDashboardView);
-document.getElementById('btn-back-to-dashboard').addEventListener('click', showDashboardView);
-document.getElementById('btn-open-create-modal').addEventListener('click', () => {
+// Navigation & Modals
+document.getElementById('btn-home')?.addEventListener('click', showDashboardView);
+document.getElementById('btn-cancel-quiz')?.addEventListener('click', showDashboardView);
+document.getElementById('btn-back-to-dashboard')?.addEventListener('click', showDashboardView);
+document.getElementById('btn-open-create-modal')?.addEventListener('click', () => {
   document.getElementById('modal-create-quiz').classList.remove('hidden');
 });
 
@@ -314,8 +307,8 @@ document.querySelectorAll('.btn-close-modal').forEach(btn => {
   });
 });
 
-// Admin Quiz Create Form Handler
-document.getElementById('form-create-quiz').addEventListener('submit', async (e) => {
+// Admin Quiz Create
+document.getElementById('form-create-quiz')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const chapter = document.getElementById('input-chapter-name').value.trim();
   const title = document.getElementById('input-quiz-title').value.trim();
@@ -363,13 +356,14 @@ async function loadQuizzesFromDB() {
       renderChapterCards(getSampleQuizzes());
     }
   } catch (err) {
-    console.warn("DB 로드 실패, 샘플 표시:", err);
     renderChapterCards(getSampleQuizzes());
   }
 }
 
 function renderChapterCards(quizzes) {
-  chapterListContainer.innerHTML = '';
+  const container = document.getElementById('chapter-list-container');
+  if (!container) return;
+  container.innerHTML = '';
   quizzes.forEach(quiz => {
     const card = document.createElement('div');
     card.className = "bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition flex flex-col justify-between";
@@ -388,7 +382,7 @@ function renderChapterCards(quizzes) {
     `;
 
     card.querySelector('.btn-start-quiz').addEventListener('click', () => startQuiz(quiz));
-    chapterListContainer.appendChild(card);
+    container.appendChild(card);
   });
 }
 
@@ -417,13 +411,13 @@ function startQuiz(quiz) {
     container.appendChild(qEl);
   });
 
-  viewDashboard.classList.add('hidden');
-  viewQuizSolve.classList.remove('hidden');
-  viewQuizResult.classList.add('hidden');
+  document.getElementById('view-dashboard').classList.add('hidden');
+  document.getElementById('view-quiz-solve').classList.remove('hidden');
+  document.getElementById('view-quiz-result').classList.add('hidden');
 }
 
 // Submit Quiz
-document.getElementById('form-solve-quiz').addEventListener('submit', async (e) => {
+document.getElementById('form-solve-quiz')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!currentActiveQuiz) return;
 
@@ -467,11 +461,11 @@ document.getElementById('form-solve-quiz').addEventListener('submit', async (e) 
     }
   }
 
-  viewQuizSolve.classList.add('hidden');
-  viewQuizResult.classList.remove('hidden');
+  document.getElementById('view-quiz-solve').classList.add('hidden');
+  document.getElementById('view-quiz-result').classList.remove('hidden');
 });
 
-// Load User Stats & Render Chart
+// Load Stats
 async function loadUserStats() {
   if (!currentUser || currentUser.role === 'admin') return;
 
@@ -504,15 +498,14 @@ async function loadUserStats() {
 }
 
 function renderChart(records) {
-  const ctx = document.getElementById('scoreTrendChart').getContext('2d');
-  const recentRecords = records.slice(-7);
+  const ctx = document.getElementById('scoreTrendChart')?.getContext('2d');
+  if (!ctx) return;
 
+  const recentRecords = records.slice(-7);
   const labels = recentRecords.map((r, i) => `${i + 1}회차`);
   const scores = recentRecords.map(r => r.score);
 
-  if (scoreChartInstance) {
-    scoreChartInstance.destroy();
-  }
+  if (scoreChartInstance) scoreChartInstance.destroy();
 
   scoreChartInstance = new Chart(ctx, {
     type: 'line',
@@ -531,17 +524,15 @@ function renderChart(records) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: {
-        y: { min: 0, max: 100 }
-      }
+      scales: { y: { min: 0, max: 100 } }
     }
   });
 }
 
 function showDashboardView() {
-  viewDashboard.classList.remove('hidden');
-  viewQuizSolve.classList.add('hidden');
-  viewQuizResult.classList.add('hidden');
+  document.getElementById('view-dashboard').classList.remove('hidden');
+  document.getElementById('view-quiz-solve').classList.add('hidden');
+  document.getElementById('view-quiz-result').classList.add('hidden');
   if (currentUser && currentUser.role !== 'admin') loadUserStats();
 }
 
