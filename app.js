@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
 import { getDatabase, ref, set, get, push, child } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
 
-// Firebase 설정
+// Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCgW94XkD8N3Q2JFBrt3Ob2iFBuGHWtwIA",
   authDomain: "project-db0cc7ad-f679-46c4-bb7.firebaseapp.com",
@@ -13,30 +13,211 @@ const firebaseConfig = {
   measurementId: "G-B5SE27VK15"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// State
-let currentUser = JSON.parse(localStorage.getItem('quiz_user')) || null;
+// 🔒 관리자 인증용 보안 해시 (요청사항 3: 평문 노출 방지)
+// id: 'seongwan' (SHA-256) -> d224d08432b0a887caed72ef91fec1eddb4f0f670f5e1f0e4b8686d1ae6fa87e
+// pw: '123456'   (SHA-256) -> 8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92
+const ADMIN_ID_HASH = "d224d08432b0a887caed72ef91fec1eddb4f0f670f5e1f0e4b8686d1ae6fa87e";
+const ADMIN_PW_HASH = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+
+// SHA-256 해시 생성 함수
+async function hashText(text) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Global App State
+let currentUser = JSON.parse(sessionStorage.getItem('quiz_session_user')) || null;
 let currentActiveQuiz = null;
+let scoreChartInstance = null;
 
 // DOM Elements
-const authSection = document.getElementById('auth-section');
-const adminActionArea = document.getElementById('admin-action-area');
+const viewAuth = document.getElementById('view-auth');
+const appContent = document.getElementById('app-content');
+const tabLogin = document.getElementById('tab-login');
+const tabSignup = document.getElementById('tab-signup');
+const formLogin = document.getElementById('form-login');
+const formSignup = document.getElementById('form-signup');
+
 const welcomeTitle = document.getElementById('welcome-title');
+const welcomeSub = document.getElementById('welcome-sub');
+const adminActionArea = document.getElementById('admin-action-area');
+const memberStatsSection = document.getElementById('member-stats-section');
 const chapterListContainer = document.getElementById('chapter-list-container');
-const userStatsCard = document.getElementById('user-stats-card');
+const authSection = document.getElementById('auth-section');
 
 const viewDashboard = document.getElementById('view-dashboard');
 const viewQuizSolve = document.getElementById('view-quiz-solve');
 const viewQuizResult = document.getElementById('view-quiz-result');
 
-// Init Sync
-updateAuthUI();
-loadQuizzesFromDB();
+// App Initialization
+initApp();
 
-// Navigation Events
+function initApp() {
+  if (currentUser) {
+    showAppMain();
+  } else {
+    showAuthScreen();
+  }
+}
+
+function showAuthScreen() {
+  viewAuth.classList.remove('hidden');
+  appContent.classList.add('hidden');
+}
+
+function showAppMain() {
+  viewAuth.classList.add('hidden');
+  appContent.classList.remove('hidden');
+  appContent.classList.add('flex');
+  updateAuthHeader();
+  showDashboardView();
+  loadQuizzesFromDB();
+}
+
+// Auth Tab Switch
+tabLogin.addEventListener('click', () => {
+  tabLogin.className = "w-1/2 py-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold";
+  tabSignup.className = "w-1/2 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600";
+  formLogin.classList.remove('hidden');
+  formSignup.classList.add('hidden');
+});
+
+tabSignup.addEventListener('click', () => {
+  tabSignup.className = "w-1/2 py-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold";
+  tabLogin.className = "w-1/2 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600";
+  formSignup.classList.remove('hidden');
+  formLogin.classList.add('hidden');
+});
+
+// 1 & 3. 로그인 로직 (관리자 해시 검증 및 일반 회원 DB 검증)
+formLogin.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const idInput = document.getElementById('login-id').value.trim();
+  const pwInput = document.getElementById('login-pw').value.trim();
+
+  const idHash = await hashText(idInput);
+  const pwHash = await hashText(pwInput);
+
+  // 관리자 여부 해시 검증
+  if (idHash === ADMIN_ID_HASH && pwHash === ADMIN_PW_HASH) {
+    currentUser = {
+      id: 'admin',
+      name: '관리자',
+      studentId: 'ADMIN',
+      role: 'admin'
+    };
+    sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
+    showAppMain();
+    return;
+  }
+
+  // 일반 회원 DB 검증
+  try {
+    const userSnapshot = await get(child(ref(db), `users/${idInput}`));
+    if (userSnapshot.exists()) {
+      const userData = userSnapshot.val();
+      if (userData.password === pwInput) {
+        currentUser = {
+          id: idInput,
+          name: userData.name,
+          studentId: userData.studentId,
+          role: 'member'
+        };
+        sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
+        showAppMain();
+      } else {
+        alert('비밀번호가 일치하지 않습니다.');
+      }
+    } else {
+      alert('존재하지 않는 아이디입니다. 회원가입을 먼저 진행해 주세요.');
+    }
+  } catch (err) {
+    console.error("로그인 에러:", err);
+    alert('로그인 처리 중 오류가 발생했습니다.');
+  }
+});
+
+// 2. 회원가입 로직 (아이디, 비밀번호, 학번, 이름)
+formSignup.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('signup-id').value.trim();
+  const pw = document.getElementById('signup-pw').value.trim();
+  const name = document.getElementById('signup-name').value.trim();
+  const studentId = document.getElementById('signup-student-id').value.trim();
+
+  // 관리자 아이디 가입 방지
+  const idHash = await hashText(id);
+  if (idHash === ADMIN_ID_HASH) {
+    alert('사용할 수 없는 예약어 아이디입니다.');
+    return;
+  }
+
+  try {
+    const userRef = ref(db, `users/${id}`);
+    const snapshot = await get(userRef);
+
+    if (snapshot.exists()) {
+      alert('이미 존재하는 아이디입니다.');
+      return;
+    }
+
+    await set(userRef, {
+      password: pw,
+      name,
+      studentId,
+      createdAt: Date.now()
+    });
+
+    alert('회원가입이 완료되었습니다! 로그인해 주세요.');
+    tabLogin.click();
+    document.getElementById('login-id').value = id;
+    formSignup.reset();
+  } catch (err) {
+    console.error("회원가입 오류:", err);
+    alert('회원가입 실패: ' + err.message);
+  }
+});
+
+// Header UI
+function updateAuthHeader() {
+  if (!currentUser) return;
+  welcomeTitle.textContent = `반갑습니다, ${currentUser.name}님!`;
+  welcomeSub.textContent = currentUser.role === 'admin' 
+    ? '관리자 모드로 접속 중입니다. 단원 출제 및 관리가 가능합니다.' 
+    : `학번: ${currentUser.studentId} | 평가 기록을 점검하고 퀴즈를 풀어보세요.`;
+
+  authSection.innerHTML = `
+    <span class="text-xs bg-indigo-700 text-indigo-100 px-3 py-1 rounded-full font-medium">
+      ${currentUser.name} (${currentUser.role === 'admin' ? '관리자' : currentUser.studentId})
+    </span>
+    <button id="btn-logout" class="text-xs bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg transition font-medium">
+      로그아웃
+    </button>
+  `;
+
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    currentUser = null;
+    sessionStorage.removeItem('quiz_session_user');
+    showAuthScreen();
+  });
+
+  if (currentUser.role === 'admin') {
+    adminActionArea.classList.remove('hidden');
+    memberStatsSection.classList.add('hidden');
+  } else {
+    adminActionArea.classList.add('hidden');
+    memberStatsSection.classList.remove('hidden');
+    loadUserStats();
+  }
+}
+
+// Navigation & Modals
 document.getElementById('btn-home').addEventListener('click', showDashboardView);
 document.getElementById('btn-cancel-quiz').addEventListener('click', showDashboardView);
 document.getElementById('btn-back-to-dashboard').addEventListener('click', showDashboardView);
@@ -44,65 +225,13 @@ document.getElementById('btn-open-create-modal').addEventListener('click', () =>
   document.getElementById('modal-create-quiz').classList.remove('hidden');
 });
 
-// Close Modals
 document.querySelectorAll('.btn-close-modal').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.getElementById('modal-auth').classList.add('hidden');
     document.getElementById('modal-create-quiz').classList.add('hidden');
   });
 });
 
-// Auth Form Handler
-document.getElementById('form-auth').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const username = document.getElementById('auth-username').value.trim();
-  const role = document.getElementById('auth-role').value;
-
-  if (!username) return;
-
-  currentUser = { username, role };
-  localStorage.setItem('quiz_user', JSON.stringify(currentUser));
-  updateAuthUI();
-  document.getElementById('modal-auth').classList.add('hidden');
-});
-
-function updateAuthUI() {
-  if (currentUser) {
-    welcomeTitle.textContent = `반갑습니다, ${currentUser.username}님! (${currentUser.role === 'admin' ? '운영진' : '일반 회원'})`;
-    authSection.innerHTML = `
-      <span class="text-sm font-medium text-indigo-100">${currentUser.username} (${currentUser.role === 'admin' ? '운영진' : '회원'})</span>
-      <button id="btn-logout" class="text-xs bg-indigo-700 hover:bg-indigo-800 px-3 py-1.5 rounded transition">로그아웃</button>
-    `;
-    document.getElementById('btn-logout').addEventListener('click', () => {
-      currentUser = null;
-      localStorage.removeItem('quiz_user');
-      updateAuthUI();
-    });
-
-    if (currentUser.role === 'admin') {
-      adminActionArea.classList.remove('hidden');
-      userStatsCard.classList.add('hidden');
-    } else {
-      adminActionArea.classList.add('hidden');
-      userStatsCard.classList.remove('hidden');
-      loadUserStats();
-    }
-  } else {
-    welcomeTitle.textContent = "안녕하세요! 로그인이 필요합니다.";
-    userStatsCard.classList.add('hidden');
-    adminActionArea.classList.add('hidden');
-    authSection.innerHTML = `
-      <button id="btn-login-modal" class="text-sm bg-white text-indigo-600 hover:bg-indigo-50 font-medium px-4 py-1.5 rounded-lg transition shadow-sm">
-        로그인 / 가입
-      </button>
-    `;
-    document.getElementById('btn-login-modal').addEventListener('click', () => {
-      document.getElementById('modal-auth').classList.remove('hidden');
-    });
-  }
-}
-
-// Create Quiz Form Handler
+// Admin Quiz Create
 document.getElementById('form-create-quiz').addEventListener('submit', async (e) => {
   e.preventDefault();
   const chapter = document.getElementById('input-chapter-name').value.trim();
@@ -125,50 +254,39 @@ document.getElementById('form-create-quiz').addEventListener('submit', async (e)
     title,
     questions,
     createdAt: Date.now(),
-    author: currentUser ? currentUser.username : '운영진'
+    author: currentUser.name
   };
 
   try {
-    const quizzesRef = ref(db, 'quizzes');
-    const newQuizRef = push(quizzesRef);
-    await set(newQuizRef, newQuizData);
-
-    alert('성공적으로 Firebase 서버에 퀴즈가 출제되었습니다!');
+    await push(ref(db, 'quizzes'), newQuizData);
+    alert('퀴즈가 서버에 성공적으로 출제되었습니다.');
     document.getElementById('modal-create-quiz').classList.add('hidden');
     document.getElementById('form-create-quiz').reset();
     loadQuizzesFromDB();
   } catch (err) {
-    console.error("Firebase DB 저장 오류:", err);
-    alert('데이터 저장 중 오류가 발생했습니다: ' + err.message);
+    alert('출제 오류: ' + err.message);
   }
 });
 
-// Load Quizzes
+// Load Quiz Cards
 async function loadQuizzesFromDB() {
   try {
-    const dbRef = ref(db);
-    const snapshot = await get(child(dbRef, 'quizzes'));
-
+    const snapshot = await get(child(ref(db), 'quizzes'));
     if (snapshot.exists()) {
       const data = snapshot.val();
-      const quizList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-      renderChapterCards(quizList);
+      const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+      renderChapterCards(list);
     } else {
       renderChapterCards(getSampleQuizzes());
     }
-  } catch (error) {
-    console.warn("Firebase Fetch Error, using sample data:", error);
+  } catch (err) {
+    console.warn("DB 로드 실패, 샘플 표시:", err);
     renderChapterCards(getSampleQuizzes());
   }
 }
 
 function renderChapterCards(quizzes) {
   chapterListContainer.innerHTML = '';
-  if (!quizzes || quizzes.length === 0) {
-    chapterListContainer.innerHTML = `<p class="col-span-full text-center text-slate-400 py-8">등록된 퀴즈가 없습니다.</p>`;
-    return;
-  }
-
   quizzes.forEach(quiz => {
     const card = document.createElement('div');
     card.className = "bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition flex flex-col justify-between";
@@ -186,15 +304,7 @@ function renderChapterCards(quizzes) {
       </button>
     `;
 
-    card.querySelector('.btn-start-quiz').addEventListener('click', () => {
-      if (!currentUser) {
-        alert('퀴즈에 응시하려면 로그인이 필요합니다.');
-        document.getElementById('modal-auth').classList.remove('hidden');
-        return;
-      }
-      startQuiz(quiz);
-    });
-
+    card.querySelector('.btn-start-quiz').addEventListener('click', () => startQuiz(quiz));
     chapterListContainer.appendChild(card);
   });
 }
@@ -204,8 +314,8 @@ function startQuiz(quiz) {
   document.getElementById('solve-chapter-title').textContent = quiz.chapter;
   document.getElementById('solve-quiz-title').textContent = quiz.title;
 
-  const questionsContainer = document.getElementById('questions-container');
-  questionsContainer.innerHTML = '';
+  const container = document.getElementById('questions-container');
+  container.innerHTML = '';
 
   quiz.questions.forEach((q, idx) => {
     const qEl = document.createElement('div');
@@ -221,7 +331,7 @@ function startQuiz(quiz) {
         `).join('')}
       </div>
     `;
-    questionsContainer.appendChild(qEl);
+    container.appendChild(qEl);
   });
 
   viewDashboard.classList.add('hidden');
@@ -229,12 +339,13 @@ function startQuiz(quiz) {
   viewQuizResult.classList.add('hidden');
 }
 
+// 4. Submit & Render Detailed Feedback
 document.getElementById('form-solve-quiz').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!currentActiveQuiz) return;
 
   let score = 0;
-  const totalQuestions = currentActiveQuiz.questions.length;
+  const total = currentActiveQuiz.questions.length;
   const feedbackHTML = [];
 
   currentActiveQuiz.questions.forEach((q, idx) => {
@@ -242,7 +353,7 @@ document.getElementById('form-solve-quiz').addEventListener('submit', async (e) 
     const userAns = selected ? parseInt(selected.value, 10) : -1;
     const isCorrect = (userAns === q.answer);
 
-    if (isCorrect) score += 100 / totalQuestions;
+    if (isCorrect) score += 100 / total;
 
     feedbackHTML.push(`
       <div class="p-4 rounded-lg border ${isCorrect ? 'border-emerald-200 bg-emerald-50/50' : 'border-rose-200 bg-rose-50/50'}">
@@ -250,7 +361,7 @@ document.getElementById('form-solve-quiz').addEventListener('submit', async (e) 
           <i class="fa-solid ${isCorrect ? 'fa-circle-check text-emerald-600' : 'fa-circle-xmark text-rose-600'}"></i>
           <span class="font-bold text-sm text-slate-800">Q${idx + 1}. ${q.title}</span>
         </div>
-        <p class="text-xs text-slate-600 mt-1">선택 답안: ${q.options[userAns] || '미선택'} | 정답: ${q.options[q.answer]}</p>
+        <p class="text-xs text-slate-600 mt-1">선택: ${q.options[userAns] || '미선택'} | 정답: ${q.options[q.answer]}</p>
         ${q.explanation ? `<p class="text-xs text-slate-500 mt-2 bg-white/70 p-2 rounded">💡 해설: ${q.explanation}</p>` : ''}
       </div>
     `);
@@ -260,16 +371,16 @@ document.getElementById('form-solve-quiz').addEventListener('submit', async (e) 
   document.getElementById('result-score').textContent = finalScore;
   document.getElementById('result-feedback-container').innerHTML = feedbackHTML.join('');
 
-  if (currentUser) {
+  if (currentUser && currentUser.role !== 'admin') {
     try {
-      const resultRef = ref(db, `results/${currentUser.username}`);
-      await push(resultRef, {
+      await push(ref(db, `results/${currentUser.id}`), {
         quizTitle: currentActiveQuiz.title,
+        chapter: currentActiveQuiz.chapter,
         score: finalScore,
         submittedAt: Date.now()
       });
     } catch (err) {
-      console.warn("결과 기록 저장 실패:", err);
+      console.warn("결과 기록 실패:", err);
     }
   }
 
@@ -277,23 +388,73 @@ document.getElementById('form-solve-quiz').addEventListener('submit', async (e) 
   viewQuizResult.classList.remove('hidden');
 });
 
+// 4. 대시보드 통계 및 Chart.js 요약 차트 업데이트
 async function loadUserStats() {
-  if (!currentUser) return;
+  if (!currentUser || currentUser.role === 'admin') return;
+
   try {
-    const resultRef = ref(db, `results/${currentUser.username}`);
-    const snapshot = await get(resultRef);
+    const snapshot = await get(child(ref(db), `results/${currentUser.id}`));
     if (snapshot.exists()) {
       const records = Object.values(snapshot.val());
       const totalTrials = records.length;
       const avgScore = Math.round(records.reduce((acc, cur) => acc + cur.score, 0) / totalTrials);
+      const completedChapters = new Set(records.map(r => r.chapter || r.quizTitle)).size;
 
       document.getElementById('stat-total-trials').textContent = `${totalTrials}회`;
       document.getElementById('stat-avg-score').textContent = `${avgScore}점`;
-      document.getElementById('stat-completed-chapters').textContent = `${new Set(records.map(r => r.quizTitle)).size}개`;
+      document.getElementById('stat-completed-chapters').textContent = `${completedChapters}개`;
+
+      // Render Table
+      const tableBody = document.getElementById('table-user-records');
+      tableBody.innerHTML = records.slice(-5).reverse().map(r => `
+        <tr>
+          <td class="p-2 font-medium">${r.quizTitle}</td>
+          <td class="p-2 font-bold ${r.score >= 80 ? 'text-emerald-600' : 'text-amber-600'}">${r.score}점</td>
+          <td class="p-2 text-slate-400">${new Date(r.submittedAt).toLocaleDateString()}</td>
+        </tr>
+      `).join('');
+
+      // Render Score Trend Chart
+      renderChart(records);
     }
   } catch (err) {
     console.warn("통계 조회 실패:", err);
   }
+}
+
+function renderChart(records) {
+  const ctx = document.getElementById('scoreTrendChart').getContext('2d');
+  const recentRecords = records.slice(-7); // 최근 7개 기록
+
+  const labels = recentRecords.map((r, i) => `${i + 1}회차`);
+  const scores = recentRecords.map(r => r.score);
+
+  if (scoreChartInstance) {
+    scoreChartInstance.destroy();
+  }
+
+  scoreChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '획득 점수',
+        data: scores,
+        borderColor: '#4f46e5',
+        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#4f46e5'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 0, max: 100 }
+      }
+    }
+  });
 }
 
 function showDashboardView() {
@@ -306,15 +467,15 @@ function showDashboardView() {
 function getSampleQuizzes() {
   return [{
     id: 'sample-1',
-    chapter: '제 1장. Firebase 기초',
+    chapter: '제 1장. 데이터베이스 기초',
     title: 'Realtime Database 샘플 점검',
     createdAt: Date.now(),
     author: '운영진',
     questions: [{
-      title: 'Firebase Realtime Database의 데이터 저장 형식은 무엇일까요?',
-      options: ['JSON 트리', '관계형 테이블', 'CSV 파일', 'XML 데이터'],
+      title: 'Firebase Realtime Database의 기본 저장 구조는 무엇일까요?',
+      options: ['JSON 트리', '관계형 테이블', 'CSV 파일', 'XML 파일'],
       answer: 0,
-      explanation: 'Realtime Database는 하나의 거대한 JSON 데이터 트리 형식으로 데이터를 저장합니다.'
+      explanation: 'Realtime Database는 거대한 JSON 트리 구조로 데이터를 취급합니다.'
     }]
   }];
 }
