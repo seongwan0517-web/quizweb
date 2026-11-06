@@ -101,6 +101,7 @@ tabSignup.addEventListener('click', (e) => {
 });
 
 // 📌 [수정 2] 로그인 처리 로직 (관리자 seongwan / 123456 직접 우선 검증 후 해시 및 DB 검사)
+// 로그인 처리 로직 (수정 완료)
 formLogin.addEventListener('submit', async (e) => {
   e.preventDefault();
   const idInput = document.getElementById('login-id').value.trim();
@@ -111,12 +112,9 @@ formLogin.addEventListener('submit', async (e) => {
     return;
   }
 
-  const idHash = await hashText(idInput);
-  const pwHash = await hashText(pwInput);
-
-  // 1. 관리자 계정 검증
-  if (idInput === 'seongwan' || idHash === ADMIN_ID_HASH) {
-    if (pwInput === '123456' || pwHash === ADMIN_PW_HASH) {
+  // 1. ✨ 관리자 계정 직접 검증 (최우선 처리)
+  if (idInput === 'seongwan') {
+    if (pwInput === '123456') {
       currentUser = {
         id: 'seongwan',
         name: '관리자',
@@ -125,14 +123,14 @@ formLogin.addEventListener('submit', async (e) => {
       };
       sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
       showAppMain();
-      return;
+      return; // 관리자 확인 완료 시 여기서 함수 종료 (DB 조회 안 함)
     } else {
-      alert('관리자 비밀번호가 틀렸습니다.');
+      alert('관리자 비밀번호가 일치하지 않습니다.');
       return;
     }
   }
 
-  // 2. 일반 회원 DB 검증
+  // 2. 일반 회원 Firebase DB 검증
   try {
     const userSnapshot = await get(child(ref(db), `users/${idInput}`));
     if (userSnapshot.exists()) {
@@ -150,7 +148,7 @@ formLogin.addEventListener('submit', async (e) => {
         alert('비밀번호가 일치하지 않습니다.');
       }
     } else {
-      alert('존재하지 않는 아이디입니다. 회원가입을 진행해 주세요.');
+      alert('존재하지 않는 아이디입니다. 회원가입을 먼저 진행해 주세요.');
     }
   } catch (err) {
     console.error("로그인 에러:", err);
