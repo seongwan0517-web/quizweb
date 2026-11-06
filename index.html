@@ -57,11 +57,7 @@
         </div>
 
         <!-- ✨ 카카오 로그인 버튼 -->
-        <button id="btn-kakao-login" type="button" class="w-full flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#FADA0A] text-[#191919] font-bold py-3 rounded-lg transition text-sm shadow">
-          <i class="fa-solid fa-comment text-lg"></i> 카카오 로그인
-        </button>
-        <!-- 카카오 로그인 버튼 (onclick 추가) -->
-<button type="button" onclick="handleKakaoLogin()" id="btn-kakao-login" class="w-full flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#FADA0A] text-[#191919] font-bold py-3 rounded-lg transition text-sm shadow cursor-pointer">
+    <button type="button" id="btn-kakao-login" class="w-full flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#FADA0A] text-[#191919] font-bold py-3 rounded-lg transition text-sm shadow cursor-pointer">
   <i class="fa-solid fa-comment text-lg"></i> 카카오 로그인
 </button>
       </form>
@@ -294,5 +290,64 @@
   </div>
 
   <script type="module" src="app.js"></script>
+  <!-- 앱 스크립트 모듈 -->
+  <script type="module" src="app.js"></script>
+
+  <!-- ✨ 카카오 로그인 이벤트 직접 연결 (모듈 스코프 문제 해결) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var kakaoBtn = document.getElementById('btn-kakao-login');
+      if (kakaoBtn) {
+        kakaoBtn.addEventListener('click', function() {
+          // 카카오 SDK 초기화 확인
+          if (window.Kakao && !window.Kakao.isInitialized()) {
+            window.Kakao.init("f5672116e00acade1409749490575059");
+          }
+
+          if (!window.Kakao || !window.Kakao.Auth) {
+            alert("카카오 SDK를 불러오지 못했습니다. 페이지를 새로고침 해보세요.");
+            return;
+          }
+
+          // 카카오 로그인 팝업 호출
+          window.Kakao.Auth.login({
+            success: function(authObj) {
+              window.Kakao.API.request({
+                url: '/v2/user/me',
+                success: function(res) {
+                  var kakaoName = (res.kakao_account && res.kakao_account.profile) 
+                    ? res.kakao_account.profile.nickname 
+                    : '카카오 사용자';
+                  
+                  var studentId = prompt(kakaoName + "님, 학번을 입력해 주세요:", "20260000");
+                  if (!studentId) studentId = "카카오회원";
+
+                  var currentUser = {
+                    id: 'kakao_' + res.id,
+                    name: kakaoName,
+                    studentId: studentId.trim(),
+                    role: 'member'
+                  };
+
+                  // 세션 저장 후 로그인 처리
+                  sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
+                  alert(kakaoName + "님 환영합니다!");
+                  window.location.reload(); // 대시보드로 진입
+                },
+                fail: function(err) {
+                  alert("사용자 정보 요청 실패: " + JSON.stringify(err));
+                }
+              });
+            },
+            fail: function(err) {
+              alert("카카오 로그인 취소 또는 오류: " + JSON.stringify(err));
+            }
+          });
+        });
+      }
+    });
+  </script>
+</body>
+</html>
 </body>
 </html>
