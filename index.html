@@ -10,10 +10,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
-  <!-- ✨ 카카오 로그인 SDK 추가 -->
-  <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.8.1/kakao.min.js" integrity="sha384-OL+ylM/iuPLtW5U3XcvLSGhE8JzReKDank5InqlHGWPhb4140/yrBw0bg0y7+C9J" crossorigin="anonymous"></script>
-
   <!-- 커스텀 스타일 -->
   <link rel="stylesheet" href="style.css">
 </head>
@@ -27,7 +23,7 @@
           <i class="fa-solid fa-graduation-cap text-3xl"></i>
         </div>
         <h2 class="text-2xl font-bold text-slate-800" id="auth-title">스마트 퀴즈 로그인</h2>
-        <p class="text-slate-500 text-xs" id="auth-subtitle">아이디/비밀번호 또는 카카오 계정으로 로그인하세요.</p>
+        <p class="text-slate-500 text-xs" id="auth-subtitle">아이디/비밀번호 또는 구글 계정으로 로그인하세요.</p>
       </div>
 
       <!-- Tab Buttons -->
@@ -56,10 +52,10 @@
           <div class="flex-grow border-t border-slate-200"></div>
         </div>
 
-        <!-- ✨ 카카오 로그인 버튼 -->
-    <button type="button" id="btn-kakao-login" class="w-full flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#FADA0A] text-[#191919] font-bold py-3 rounded-lg transition text-sm shadow cursor-pointer">
-  <i class="fa-solid fa-comment text-lg"></i> 카카오 로그인
-</button>
+        <!-- ✨ 구글 로그인 버튼 추가 -->
+        <button id="btn-google-login" type="button" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold py-3 rounded-lg transition text-sm shadow-sm">
+          <i class="fa-brands fa-google text-rose-500 text-lg"></i> Google 계정으로 로그인
+        </button>
       </form>
 
       <!-- Signup Form -->
@@ -87,16 +83,14 @@
     </div>
   </section>
 
-  <!-- App Main Layout (Hidden until logged in) -->
+  <!-- App Main Layout -->
   <div id="app-content" class="hidden flex-col min-h-screen">
-    <!-- Header & Main Contents Same As Before -->
     <header class="bg-indigo-600 text-white shadow-md">
       <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
         <div class="flex items-center space-x-3 cursor-pointer" id="btn-home">
           <i class="fa-solid fa-graduation-cap text-2xl"></i>
           <h1 class="text-xl font-bold tracking-tight">스마트 퀴즈 웹</h1>
         </div>
-        
         <div class="flex items-center space-x-4">
           <span id="db-status-badge" class="text-xs px-2.5 py-1 rounded-full bg-emerald-500 text-white font-medium flex items-center gap-1">
             <i class="fa-solid fa-cloud"></i> DB 연결됨
@@ -290,64 +284,5 @@
   </div>
 
   <script type="module" src="app.js"></script>
-  <!-- 앱 스크립트 모듈 -->
-  <script type="module" src="app.js"></script>
-
-  <!-- ✨ 카카오 로그인 이벤트 직접 연결 (모듈 스코프 문제 해결) -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      var kakaoBtn = document.getElementById('btn-kakao-login');
-      if (kakaoBtn) {
-        kakaoBtn.addEventListener('click', function() {
-          // 카카오 SDK 초기화 확인
-          if (window.Kakao && !window.Kakao.isInitialized()) {
-            window.Kakao.init("f5672116e00acade1409749490575059");
-          }
-
-          if (!window.Kakao || !window.Kakao.Auth) {
-            alert("카카오 SDK를 불러오지 못했습니다. 페이지를 새로고침 해보세요.");
-            return;
-          }
-
-          // 카카오 로그인 팝업 호출
-          window.Kakao.Auth.login({
-            success: function(authObj) {
-              window.Kakao.API.request({
-                url: '/v2/user/me',
-                success: function(res) {
-                  var kakaoName = (res.kakao_account && res.kakao_account.profile) 
-                    ? res.kakao_account.profile.nickname 
-                    : '카카오 사용자';
-                  
-                  var studentId = prompt(kakaoName + "님, 학번을 입력해 주세요:", "20260000");
-                  if (!studentId) studentId = "카카오회원";
-
-                  var currentUser = {
-                    id: 'kakao_' + res.id,
-                    name: kakaoName,
-                    studentId: studentId.trim(),
-                    role: 'member'
-                  };
-
-                  // 세션 저장 후 로그인 처리
-                  sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
-                  alert(kakaoName + "님 환영합니다!");
-                  window.location.reload(); // 대시보드로 진입
-                },
-                fail: function(err) {
-                  alert("사용자 정보 요청 실패: " + JSON.stringify(err));
-                }
-              });
-            },
-            fail: function(err) {
-              alert("카카오 로그인 취소 또는 오류: " + JSON.stringify(err));
-            }
-          });
-        });
-      }
-    });
-  </script>
-</body>
-</html>
 </body>
 </html>
