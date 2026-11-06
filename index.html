@@ -8,10 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
-    body { font-family: 'Noto Sans KR', sans-serif; }
-  </style>
+  <!-- 커스텀 스타일 -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
 
@@ -25,14 +23,10 @@
       
       <!-- User Info / Nav -->
       <div class="flex items-center space-x-4">
-        <!-- DB Connected Status Badge -->
         <span id="db-status-badge" class="text-xs px-2.5 py-1 rounded-full bg-emerald-500 text-white font-medium flex items-center gap-1">
           <i class="fa-solid fa-cloud"></i> DB 연결 완료
         </span>
-
-        <div id="auth-section" class="flex items-center space-x-2">
-          <!-- Dynamically populated via JS -->
-        </div>
+        <div id="auth-section" class="flex items-center space-x-2"></div>
       </div>
     </div>
   </header>
@@ -40,13 +34,12 @@
   <!-- Main Content Container -->
   <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full">
 
-    <!-- Screen 1: Chapter List & Member Dashboard -->
+    <!-- Screen 1: Dashboard -->
     <section id="view-dashboard" class="space-y-6">
-      <!-- Welcome Banner -->
       <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 class="text-2xl font-bold text-slate-800" id="welcome-title">안녕하세요!</h2>
-          <p class="text-slate-500 text-sm mt-1" id="welcome-sub font-normal">단원별 퀴즈를 풀고 나의 실력을 점검해보세요.</p>
+          <p class="text-slate-500 text-sm mt-1" id="welcome-sub">단원별 퀴즈를 풀고 나의 실력을 점검해보세요.</p>
         </div>
         <div id="admin-action-area" class="hidden">
           <button id="btn-open-create-modal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-lg shadow transition flex items-center gap-2">
@@ -55,7 +48,7 @@
         </div>
       </div>
 
-      <!-- User Stats Summary (For Members) -->
+      <!-- User Stats Summary -->
       <div id="user-stats-card" class="hidden bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl p-6 shadow-md grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="text-center sm:text-left">
           <p class="text-indigo-100 text-sm">누적 응시 횟수</p>
@@ -77,7 +70,6 @@
           <i class="fa-solid fa-book-open text-indigo-600"></i> 학습 단원 목록
         </h3>
         <div id="chapter-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <!-- Dynamic Chapter Cards -->
           <div class="col-span-full py-12 text-center text-slate-400">
             <i class="fa-solid fa-spinner animate-spin text-3xl mb-2"></i>
             <p>퀴즈 단원을 불러오는 중입니다...</p>
@@ -89,7 +81,6 @@
     <!-- Screen 2: Quiz Solving View -->
     <section id="view-quiz-solve" class="hidden max-w-3xl mx-auto space-y-6">
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <!-- Quiz Header -->
         <div class="flex justify-between items-center pb-4 mb-6 border-b border-slate-100">
           <div>
             <span class="text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-md" id="solve-chapter-title">단원명</span>
@@ -100,12 +91,8 @@
           </button>
         </div>
 
-        <!-- Question Body -->
         <form id="form-solve-quiz" class="space-y-6">
-          <div id="questions-container" class="space-y-8">
-            <!-- Dynamic Questions -->
-          </div>
-
+          <div id="questions-container" class="space-y-8"></div>
           <div class="pt-6 border-t border-slate-100 flex justify-end">
             <button type="submit" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 py-3 rounded-lg shadow-md transition">
               <i class="fa-solid fa-paper-plane mr-2"></i> 답안 제출하기
@@ -129,9 +116,7 @@
           <div class="text-5xl font-black text-indigo-600 mt-2"><span id="result-score">0</span> <span class="text-2xl font-normal text-slate-400">/ <span id="result-max-score">100</span>점</span></div>
         </div>
 
-        <div id="result-feedback-container" class="text-left space-y-4 my-8">
-          <!-- Dynamic Detailed Feedback -->
-        </div>
+        <div id="result-feedback-container" class="text-left space-y-4 my-8"></div>
 
         <button id="btn-back-to-dashboard" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2.5 rounded-lg transition">
           단원 목록으로 돌아가기
@@ -141,11 +126,11 @@
 
   </main>
 
-  <!-- Modal 1: Auth (Login/Signup) -->
+  <!-- Modal 1: Auth -->
   <div id="modal-auth" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
       <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="text-lg font-bold text-slate-800" id="auth-modal-title">로그인 / 회원가입</h3>
+        <h3 class="text-lg font-bold text-slate-800">로그인 / 회원가입</h3>
         <button class="btn-close-modal text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
       <form id="form-auth" class="space-y-4">
@@ -187,7 +172,6 @@
           </div>
         </div>
 
-        <!-- Question Form Template -->
         <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-4">
           <h4 class="font-bold text-slate-700 text-sm">문항 #1</h4>
           <div>
@@ -227,334 +211,7 @@
     </div>
   </div>
 
-  <!-- Firebase Script Section (Realtime Database v13.2.0 ESM) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-    import { getDatabase, ref, set, get, push, child } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
-
-    // Firebase configuration with Realtime Database URL
-    const firebaseConfig = {
-      apiKey: "AIzaSyCgW94XkD8N3Q2JFBrt3Ob2iFBuGHWtwIA",
-      authDomain: "project-db0cc7ad-f679-46c4-bb7.firebaseapp.com",
-      databaseURL: "https://project-db0cc7ad-f679-46c4-bb7-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "project-db0cc7ad-f679-46c4-bb7",
-      storageBucket: "project-db0cc7ad-f679-46c4-bb7.firebasestorage.app",
-      messagingSenderId: "805874074117",
-      appId: "1:805874074117:web:9e5fd02b15f431d560526c",
-      measurementId: "G-B5SE27VK15"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // App State
-    let currentUser = JSON.parse(localStorage.getItem('quiz_user')) || null;
-    let currentActiveQuiz = null;
-
-    // DOM Elements
-    const authSection = document.getElementById('auth-section');
-    const adminActionArea = document.getElementById('admin-action-area');
-    const welcomeTitle = document.getElementById('welcome-title');
-    const chapterListContainer = document.getElementById('chapter-list-container');
-    const userStatsCard = document.getElementById('user-stats-card');
-
-    // Views
-    const viewDashboard = document.getElementById('view-dashboard');
-    const viewQuizSolve = document.getElementById('view-quiz-solve');
-    const viewQuizResult = document.getElementById('view-quiz-result');
-
-    // Initial Auth UI Sync
-    updateAuthUI();
-    loadQuizzesFromDB();
-
-    // Event Listeners
-    document.getElementById('btn-home').addEventListener('click', showDashboardView);
-    document.getElementById('btn-cancel-quiz').addEventListener('click', showDashboardView);
-    document.getElementById('btn-back-to-dashboard').addEventListener('click', showDashboardView);
-    document.getElementById('btn-open-create-modal').addEventListener('click', () => {
-      document.getElementById('modal-create-quiz').classList.remove('hidden');
-    });
-
-    // Close Modals
-    document.querySelectorAll('.btn-close-modal').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.getElementById('modal-auth').classList.add('hidden');
-        document.getElementById('modal-create-quiz').classList.add('hidden');
-      });
-    });
-
-    // Auth Submission
-    document.getElementById('form-auth').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const username = document.getElementById('auth-username').value.trim();
-      const role = document.getElementById('auth-role').value;
-
-      if (!username) return;
-
-      currentUser = { username, role };
-      localStorage.setItem('quiz_user', JSON.stringify(currentUser));
-      updateAuthUI();
-      document.getElementById('modal-auth').classList.add('hidden');
-    });
-
-    function updateAuthUI() {
-      if (currentUser) {
-        welcomeTitle.textContent = `반갑습니다, ${currentUser.username}님! (${currentUser.role === 'admin' ? '운영진' : '일반 회원'})`;
-        authSection.innerHTML = `
-          <span class="text-sm font-medium text-indigo-100">${currentUser.username} (${currentUser.role === 'admin' ? '운영진' : '회원'})</span>
-          <button id="btn-logout" class="text-xs bg-indigo-700 hover:bg-indigo-800 px-3 py-1.5 rounded transition">로그아웃</button>
-        `;
-        document.getElementById('btn-logout').addEventListener('click', () => {
-          currentUser = null;
-          localStorage.removeItem('quiz_user');
-          updateAuthUI();
-        });
-
-        if (currentUser.role === 'admin') {
-          adminActionArea.classList.remove('hidden');
-          userStatsCard.classList.add('hidden');
-        } else {
-          adminActionArea.classList.add('hidden');
-          userStatsCard.classList.remove('hidden');
-          loadUserStats();
-        }
-      } else {
-        welcomeTitle.textContent = "안녕하세요! 로그인이 필요합니다.";
-        userStatsCard.classList.add('hidden');
-        adminActionArea.classList.add('hidden');
-        authSection.innerHTML = `
-          <button id="btn-login-modal" class="text-sm bg-white text-indigo-600 hover:bg-indigo-50 font-medium px-4 py-1.5 rounded-lg transition shadow-sm">
-            로그인 / 가입
-          </button>
-        `;
-        document.getElementById('btn-login-modal').addEventListener('click', () => {
-          document.getElementById('modal-auth').classList.remove('hidden');
-        });
-      }
-    }
-
-    // Save Quiz to Firebase Realtime Database
-    document.getElementById('form-create-quiz').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const chapter = document.getElementById('input-chapter-name').value.trim();
-      const title = document.getElementById('input-quiz-title').value.trim();
-
-      const questions = [{
-        title: document.getElementById('q1-title').value.trim(),
-        options: [
-          document.getElementById('q1-opt0').value.trim(),
-          document.getElementById('q1-opt1').value.trim(),
-          document.getElementById('q1-opt2').value.trim(),
-          document.getElementById('q1-opt3').value.trim(),
-        ],
-        answer: parseInt(document.getElementById('q1-answer').value, 10),
-        explanation: document.getElementById('q1-explanation').value.trim()
-      }];
-
-      const newQuizData = {
-        chapter,
-        title,
-        questions,
-        createdAt: Date.now(),
-        author: currentUser ? currentUser.username : '운영진'
-      };
-
-      try {
-        const quizzesRef = ref(db, 'quizzes');
-        const newQuizRef = push(quizzesRef);
-        await set(newQuizRef, newQuizData);
-
-        alert('성공적으로 Firebase 서버에 퀴즈가 출제되었습니다!');
-        document.getElementById('modal-create-quiz').classList.add('hidden');
-        document.getElementById('form-create-quiz').reset();
-        loadQuizzesFromDB();
-      } catch (err) {
-        console.error("Firebase DB 저장 오류:", err);
-        alert('데이터 저장 중 오류가 발생했습니다: ' + err.message);
-      }
-    });
-
-    // Load Quizzes from Firebase
-    async function loadQuizzesFromDB() {
-      try {
-        const dbRef = ref(db);
-        const snapshot = await get(child(dbRef, 'quizzes'));
-
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          const quizList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-          renderChapterCards(quizList);
-        } else {
-          // Default Sample Data if Database is empty
-          renderChapterCards(getSampleQuizzes());
-        }
-      } catch (error) {
-        console.warn("Firebase Fetch Error, using local sample data:", error);
-        renderChapterCards(getSampleQuizzes());
-      }
-    }
-
-    function renderChapterCards(quizzes) {
-      chapterListContainer.innerHTML = '';
-      if (!quizzes || quizzes.length === 0) {
-        chapterListContainer.innerHTML = `<p class="col-span-full text-center text-slate-400 py-8">등록된 퀴즈가 없습니다.</p>`;
-        return;
-      }
-
-      quizzes.forEach(quiz => {
-        const card = document.createElement('div');
-        card.className = "bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition flex flex-col justify-between";
-        card.innerHTML = `
-          <div>
-            <div class="flex justify-between items-center mb-2">
-              <span class="text-xs font-semibold bg-indigo-50 text-indigo-600 px-2 py-1 rounded">${quiz.chapter}</span>
-              <span class="text-xs text-slate-400"><i class="fa-regular fa-clock"></i> ${new Date(quiz.createdAt || Date.now()).toLocaleDateString()}</span>
-            </div>
-            <h4 class="font-bold text-slate-800 text-base mb-2">${quiz.title}</h4>
-            <p class="text-slate-500 text-xs mb-4">총 ${quiz.questions ? quiz.questions.length : 0}문항 | 작성자: ${quiz.author || '운영진'}</p>
-          </div>
-          <button class="btn-start-quiz w-full bg-slate-900 hover:bg-indigo-600 text-white font-medium py-2 rounded-lg text-sm transition" data-id="${quiz.id}">
-            퀴즈 응시하기
-          </button>
-        `;
-
-        card.querySelector('.btn-start-quiz').addEventListener('click', () => {
-          if (!currentUser) {
-            alert('퀴즈에 응시하려면 로그인이 필요합니다.');
-            document.getElementById('modal-auth').classList.remove('hidden');
-            return;
-          }
-          startQuiz(quiz);
-        });
-
-        chapterListContainer.appendChild(card);
-      });
-    }
-
-    // Start Quiz
-    function startQuiz(quiz) {
-      currentActiveQuiz = quiz;
-      document.getElementById('solve-chapter-title').textContent = quiz.chapter;
-      document.getElementById('solve-quiz-title').textContent = quiz.title;
-
-      const questionsContainer = document.getElementById('questions-container');
-      questionsContainer.innerHTML = '';
-
-      quiz.questions.forEach((q, idx) => {
-        const qEl = document.createElement('div');
-        qEl.className = "space-y-3";
-        qEl.innerHTML = `
-          <p class="font-bold text-slate-800 text-base">Q${idx + 1}. ${q.title}</p>
-          <div class="space-y-2">
-            ${q.options.map((opt, oIdx) => `
-              <label class="flex items-center p-3 border rounded-lg hover:bg-indigo-50/50 cursor-pointer transition">
-                <input type="radio" name="question_${idx}" value="${oIdx}" required class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
-                <span class="ml-3 text-sm text-slate-700">${opt}</span>
-              </label>
-            `).join('')}
-          </div>
-        `;
-        questionsContainer.appendChild(qEl);
-      });
-
-      viewDashboard.classList.add('hidden');
-      viewQuizSolve.classList.remove('hidden');
-      viewQuizResult.classList.add('hidden');
-    }
-
-    // Submit Quiz & Save Result to DB
-    document.getElementById('form-solve-quiz').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!currentActiveQuiz) return;
-
-      let score = 0;
-      const totalQuestions = currentActiveQuiz.questions.length;
-      const feedbackHTML = [];
-
-      currentActiveQuiz.questions.forEach((q, idx) => {
-        const selected = document.querySelector(`input[name="question_${idx}"]:checked`);
-        const userAns = selected ? parseInt(selected.value, 10) : -1;
-        const isCorrect = (userAns === q.answer);
-
-        if (isCorrect) score += 100 / totalQuestions;
-
-        feedbackHTML.push(`
-          <div class="p-4 rounded-lg border ${isCorrect ? 'border-emerald-200 bg-emerald-50/50' : 'border-rose-200 bg-rose-50/50'}">
-            <div class="flex items-center gap-2 mb-1">
-              <i class="fa-solid ${isCorrect ? 'fa-circle-check text-emerald-600' : 'fa-circle-xmark text-rose-600'}"></i>
-              <span class="font-bold text-sm text-slate-800">Q${idx + 1}. ${q.title}</span>
-            </div>
-            <p class="text-xs text-slate-600 mt-1">선택 답안: ${q.options[userAns] || '미선택'} | 정답: ${q.options[q.answer]}</p>
-            ${q.explanation ? `<p class="text-xs text-slate-500 mt-2 bg-white/70 p-2 rounded">💡 해설: ${q.explanation}</p>` : ''}
-          </div>
-        `);
-      });
-
-      const finalScore = Math.round(score);
-      document.getElementById('result-score').textContent = finalScore;
-      document.getElementById('result-feedback-container').innerHTML = feedbackHTML.join('');
-
-      // Save user result to Firebase
-      if (currentUser) {
-        try {
-          const resultRef = ref(db, `results/${currentUser.username}`);
-          await push(resultRef, {
-            quizTitle: currentActiveQuiz.title,
-            score: finalScore,
-            submittedAt: Date.now()
-          });
-        } catch (err) {
-          console.warn("결과 기록 저장 실패:", err);
-        }
-      }
-
-      viewQuizSolve.classList.add('hidden');
-      viewQuizResult.classList.remove('hidden');
-    });
-
-    // Load User Stats
-    async function loadUserStats() {
-      if (!currentUser) return;
-      try {
-        const resultRef = ref(db, `results/${currentUser.username}`);
-        const snapshot = await get(resultRef);
-        if (snapshot.exists()) {
-          const records = Object.values(snapshot.val());
-          const totalTrials = records.length;
-          const avgScore = Math.round(records.reduce((acc, cur) => acc + cur.score, 0) / totalTrials);
-
-          document.getElementById('stat-total-trials').textContent = `${totalTrials}회`;
-          document.getElementById('stat-avg-score').textContent = `${avgScore}점`;
-          document.getElementById('stat-completed-chapters').textContent = `${new Set(records.map(r => r.quizTitle)).size}개`;
-        }
-      } catch (err) {
-        console.warn("통계 조회 실패:", err);
-      }
-    }
-
-    function showDashboardView() {
-      viewDashboard.classList.remove('hidden');
-      viewQuizSolve.classList.add('hidden');
-      viewQuizResult.classList.add('hidden');
-      if (currentUser && currentUser.role !== 'admin') loadUserStats();
-    }
-
-    function getSampleQuizzes() {
-      return [{
-        id: 'sample-1',
-        chapter: '제 1장. Firebase 기초',
-        title: 'Realtime Database 샘플 점검',
-        createdAt: Date.now(),
-        author: '운영진',
-        questions: [{
-          title: 'Firebase Realtime Database의 데이터 저장 형식은 무엇일까요?',
-          options: ['JSON 트리', '관계형 테이블', 'CSV 파일', 'XML 데이터'],
-          answer: 0,
-          explanation: 'Realtime Database는 하나의 거대한 JSON 데이터 트리 형식으로 데이터를 저장합니다.'
-        }]
-      }];
-    }
-  </script>
+  <!-- JavaScript 모듈 연동 (HTML에서 스크립트 내용 제거) -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
