@@ -16,11 +16,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// 🔒 관리자 인증용 보안 해시 (id: seongwan / pw: 123456)
+// ✨ 카카오 SDK 초기화 (제공해주신 자바스크립트 키)
+const KAKAO_JAVASCRIPT_KEY = "f5672116e00acade1409749490575059";
+if (window.Kakao && !window.Kakao.isInitialized()) {
+  window.Kakao.init(KAKAO_JAVASCRIPT_KEY);
+}
+
+// 🔒 관리자 계정 해시
 const ADMIN_ID_HASH = "d224d08432b0a887caed72ef91fec1eddb4f0f670f5e1f0e4b8686d1ae6fa87e";
 const ADMIN_PW_HASH = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
 
-// SHA-256 해시 생성 함수
 async function hashText(text) {
   const encoder = new TextEncoder();
   const data = encoder.encode(text);
@@ -53,7 +58,6 @@ const viewDashboard = document.getElementById('view-dashboard');
 const viewQuizSolve = document.getElementById('view-quiz-solve');
 const viewQuizResult = document.getElementById('view-quiz-result');
 
-// App Initialization
 window.addEventListener('DOMContentLoaded', () => {
   initApp();
 });
@@ -80,7 +84,7 @@ function showAppMain() {
   loadQuizzesFromDB();
 }
 
-// 📌 [수정 1] 탭 버튼 클릭 시 폼 전환 확실하게 처리 (type="button" 강제 지정)
+// Tab Events
 tabLogin.setAttribute('type', 'button');
 tabSignup.setAttribute('type', 'button');
 
@@ -100,8 +104,70 @@ tabSignup.addEventListener('click', (e) => {
   formLogin.classList.add('hidden');
 });
 
-// 📌 [수정 2] 로그인 처리 로직 (관리자 seongwan / 123456 직접 우선 검증 후 해시 및 DB 검사)
-// 로그인 처리 로직 (수정 완료)
+// ✨ 카카오 로그인 버튼 핸들러
+document.getElementById('btn-kakao-login').addEventListener('click', () => {
+  if (!window.Kakao) {
+    alert('카카오 SDK 로드에 실패했습니다.');
+    return;
+  }
+
+  // 팝업 형태 간편 로그인 수행
+  window.Kakao.Auth.login({
+    success: function (authObj) {
+      window.Kakao.API.request({
+        url: '/v2/user/me',
+        success: async function (res) {
+          const kakaoId = `kakao_${res.id}`;
+          const kakaoName = res.kakao_account?.profile?.nickname || '카카오 사용자';
+
+          // Firebase DB에서 카카오 사용자 정보 조회 및 동기화
+          try {
+            const userRef = ref(db, `users/${kakaoId}`);
+            const snapshot = await get(userRef);
+
+            let studentId = "카카오회원";
+
+            if (!snapshot.exists()) {
+              // 최초 카카오 접속 시 학번 등록 안내
+              const inputStudentId = prompt(`${kakaoName}님, 학번을 입력해 주세요:`, "20260000");
+              if (inputStudentId) studentId = inputStudentId.trim();
+
+              await set(userRef, {
+                password: 'KAKAO_SOCIAL_USER',
+                name: kakaoName,
+                studentId: studentId,
+                createdAt: Date.now()
+              });
+            } else {
+              studentId = snapshot.val().studentId || studentId;
+            }
+
+            currentUser = {
+              id: kakaoId,
+              name: kakaoName,
+              studentId: studentId,
+              role: 'member'
+            };
+
+            sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
+            showAppMain();
+          } catch (err) {
+            console.error("카카오 회원 DB 연동 실패:", err);
+            alert("로그인 처리 중 오류가 발생했습니다.");
+          }
+        },
+        fail: function (error) {
+          console.error("카카오 사용자 정보 조회 실패:", error);
+        }
+      });
+    },
+    fail: function (err) {
+      console.error("카카오 로그인 실패:", err);
+    }
+  });
+});
+
+// 로그인 처리
 formLogin.addEventListener('submit', async (e) => {
   e.preventDefault();
   const idInput = document.getElementById('login-id').value.trim();
@@ -112,9 +178,11 @@ formLogin.addEventListener('submit', async (e) => {
     return;
   }
 
-  // 1. ✨ 관리자 계정 직접 검증 (최우선 처리)
-  if (idInput === 'seongwan') {
-    if (pwInput === '123456') {
+  const idHash = await hashText(idInput);
+  const pwHash = await hashText(pwInput);
+
+  if (idInput === 'seongwan' || idHash === ADMIN_ID_HASH) {
+    if (pwInput === '123456' || pwHash === ADMIN_PW_HASH) {
       currentUser = {
         id: 'seongwan',
         name: '관리자',
@@ -123,14 +191,13 @@ formLogin.addEventListener('submit', async (e) => {
       };
       sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
       showAppMain();
-      return; // 관리자 확인 완료 시 여기서 함수 종료 (DB 조회 안 함)
+      return;
     } else {
       alert('관리자 비밀번호가 일치하지 않습니다.');
       return;
     }
   }
 
-  // 2. 일반 회원 Firebase DB 검증
   try {
     const userSnapshot = await get(child(ref(db), `users/${idInput}`));
     if (userSnapshot.exists()) {
@@ -156,7 +223,7 @@ formLogin.addEventListener('submit', async (e) => {
   }
 });
 
-// 📌 [수정 3] 회원가입 처리 로직
+// 회원가입 처리
 formSignup.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = document.getElementById('signup-id').value.trim();
@@ -284,7 +351,7 @@ document.getElementById('form-create-quiz').addEventListener('submit', async (e)
   }
 });
 
-// Load Quiz Cards
+// Load Quizzes
 async function loadQuizzesFromDB() {
   try {
     const snapshot = await get(child(ref(db), 'quizzes'));
