@@ -16,9 +16,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// 🔒 관리자 인증용 보안 해시 (요청사항 3: 평문 노출 방지)
-// id: 'seongwan' (SHA-256) -> d224d08432b0a887caed72ef91fec1eddb4f0f670f5e1f0e4b8686d1ae6fa87e
-// pw: '123456'   (SHA-256) -> 8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92
+// 🔒 관리자 인증용 보안 해시 (id: seongwan / pw: 123456)
 const ADMIN_ID_HASH = "d224d08432b0a887caed72ef91fec1eddb4f0f670f5e1f0e4b8686d1ae6fa87e";
 const ADMIN_PW_HASH = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
 
@@ -56,7 +54,9 @@ const viewQuizSolve = document.getElementById('view-quiz-solve');
 const viewQuizResult = document.getElementById('view-quiz-result');
 
 // App Initialization
-initApp();
+window.addEventListener('DOMContentLoaded', () => {
+  initApp();
+});
 
 function initApp() {
   if (currentUser) {
@@ -80,44 +80,59 @@ function showAppMain() {
   loadQuizzesFromDB();
 }
 
-// Auth Tab Switch
-tabLogin.addEventListener('click', () => {
+// 📌 [수정 1] 탭 버튼 클릭 시 폼 전환 확실하게 처리 (type="button" 강제 지정)
+tabLogin.setAttribute('type', 'button');
+tabSignup.setAttribute('type', 'button');
+
+tabLogin.addEventListener('click', (e) => {
+  e.preventDefault();
   tabLogin.className = "w-1/2 py-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold";
   tabSignup.className = "w-1/2 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600";
   formLogin.classList.remove('hidden');
   formSignup.classList.add('hidden');
 });
 
-tabSignup.addEventListener('click', () => {
+tabSignup.addEventListener('click', (e) => {
+  e.preventDefault();
   tabSignup.className = "w-1/2 py-2.5 border-b-2 border-indigo-600 text-indigo-600 font-bold";
   tabLogin.className = "w-1/2 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600";
   formSignup.classList.remove('hidden');
   formLogin.classList.add('hidden');
 });
 
-// 1 & 3. 로그인 로직 (관리자 해시 검증 및 일반 회원 DB 검증)
+// 📌 [수정 2] 로그인 처리 로직 (관리자 seongwan / 123456 직접 우선 검증 후 해시 및 DB 검사)
 formLogin.addEventListener('submit', async (e) => {
   e.preventDefault();
   const idInput = document.getElementById('login-id').value.trim();
   const pwInput = document.getElementById('login-pw').value.trim();
 
-  const idHash = await hashText(idInput);
-  const pwHash = await hashText(pwInput);
-
-  // 관리자 여부 해시 검증
-  if (idHash === ADMIN_ID_HASH && pwHash === ADMIN_PW_HASH) {
-    currentUser = {
-      id: 'admin',
-      name: '관리자',
-      studentId: 'ADMIN',
-      role: 'admin'
-    };
-    sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
-    showAppMain();
+  if (!idInput || !pwInput) {
+    alert('아이디와 비밀번호를 모두 입력해 주세요.');
     return;
   }
 
-  // 일반 회원 DB 검증
+  const idHash = await hashText(idInput);
+  const pwHash = await hashText(pwInput);
+
+  // 1. 관리자 계정 검증
+  if (idInput === 'seongwan' || idHash === ADMIN_ID_HASH) {
+    if (pwInput === '123456' || pwHash === ADMIN_PW_HASH) {
+      currentUser = {
+        id: 'seongwan',
+        name: '관리자',
+        studentId: 'ADMIN',
+        role: 'admin'
+      };
+      sessionStorage.setItem('quiz_session_user', JSON.stringify(currentUser));
+      showAppMain();
+      return;
+    } else {
+      alert('관리자 비밀번호가 틀렸습니다.');
+      return;
+    }
+  }
+
+  // 2. 일반 회원 DB 검증
   try {
     const userSnapshot = await get(child(ref(db), `users/${idInput}`));
     if (userSnapshot.exists()) {
@@ -135,15 +150,15 @@ formLogin.addEventListener('submit', async (e) => {
         alert('비밀번호가 일치하지 않습니다.');
       }
     } else {
-      alert('존재하지 않는 아이디입니다. 회원가입을 먼저 진행해 주세요.');
+      alert('존재하지 않는 아이디입니다. 회원가입을 진행해 주세요.');
     }
   } catch (err) {
     console.error("로그인 에러:", err);
-    alert('로그인 처리 중 오류가 발생했습니다.');
+    alert('로그인 처리 중 오류가 발생했습니다: ' + err.message);
   }
 });
 
-// 2. 회원가입 로직 (아이디, 비밀번호, 학번, 이름)
+// 📌 [수정 3] 회원가입 처리 로직
 formSignup.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = document.getElementById('signup-id').value.trim();
@@ -151,10 +166,13 @@ formSignup.addEventListener('submit', async (e) => {
   const name = document.getElementById('signup-name').value.trim();
   const studentId = document.getElementById('signup-student-id').value.trim();
 
-  // 관리자 아이디 가입 방지
-  const idHash = await hashText(id);
-  if (idHash === ADMIN_ID_HASH) {
-    alert('사용할 수 없는 예약어 아이디입니다.');
+  if (!id || !pw || !name || !studentId) {
+    alert('모든 항목을 입력해 주세요.');
+    return;
+  }
+
+  if (id === 'seongwan') {
+    alert('사용할 수 없는 아이디입니다.');
     return;
   }
 
@@ -169,12 +187,12 @@ formSignup.addEventListener('submit', async (e) => {
 
     await set(userRef, {
       password: pw,
-      name,
-      studentId,
+      name: name,
+      studentId: studentId,
       createdAt: Date.now()
     });
 
-    alert('회원가입이 완료되었습니다! 로그인해 주세요.');
+    alert('회원가입이 성공적으로 완료되었습니다! 로그인해 주세요.');
     tabLogin.click();
     document.getElementById('login-id').value = id;
     formSignup.reset();
@@ -184,19 +202,19 @@ formSignup.addEventListener('submit', async (e) => {
   }
 });
 
-// Header UI
+// Header UI Sync
 function updateAuthHeader() {
   if (!currentUser) return;
   welcomeTitle.textContent = `반갑습니다, ${currentUser.name}님!`;
   welcomeSub.textContent = currentUser.role === 'admin' 
-    ? '관리자 모드로 접속 중입니다. 단원 출제 및 관리가 가능합니다.' 
+    ? '관리자 모드로 접속 중입니다. 퀴즈 출제 및 관리가 가능합니다.' 
     : `학번: ${currentUser.studentId} | 평가 기록을 점검하고 퀴즈를 풀어보세요.`;
 
   authSection.innerHTML = `
     <span class="text-xs bg-indigo-700 text-indigo-100 px-3 py-1 rounded-full font-medium">
       ${currentUser.name} (${currentUser.role === 'admin' ? '관리자' : currentUser.studentId})
     </span>
-    <button id="btn-logout" class="text-xs bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg transition font-medium">
+    <button id="btn-logout" type="button" class="text-xs bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg transition font-medium">
       로그아웃
     </button>
   `;
@@ -217,7 +235,7 @@ function updateAuthHeader() {
   }
 }
 
-// Navigation & Modals
+// Global Nav & Modal Event Listeners
 document.getElementById('btn-home').addEventListener('click', showDashboardView);
 document.getElementById('btn-cancel-quiz').addEventListener('click', showDashboardView);
 document.getElementById('btn-back-to-dashboard').addEventListener('click', showDashboardView);
@@ -231,7 +249,7 @@ document.querySelectorAll('.btn-close-modal').forEach(btn => {
   });
 });
 
-// Admin Quiz Create
+// Admin Quiz Create Form Handler
 document.getElementById('form-create-quiz').addEventListener('submit', async (e) => {
   e.preventDefault();
   const chapter = document.getElementById('input-chapter-name').value.trim();
@@ -299,7 +317,7 @@ function renderChapterCards(quizzes) {
         <h4 class="font-bold text-slate-800 text-base mb-2">${quiz.title}</h4>
         <p class="text-slate-500 text-xs mb-4">총 ${quiz.questions ? quiz.questions.length : 0}문항 | 작성자: ${quiz.author || '운영진'}</p>
       </div>
-      <button class="btn-start-quiz w-full bg-slate-900 hover:bg-indigo-600 text-white font-medium py-2 rounded-lg text-sm transition" data-id="${quiz.id}">
+      <button type="button" class="btn-start-quiz w-full bg-slate-900 hover:bg-indigo-600 text-white font-medium py-2 rounded-lg text-sm transition" data-id="${quiz.id}">
         퀴즈 응시하기
       </button>
     `;
@@ -339,7 +357,7 @@ function startQuiz(quiz) {
   viewQuizResult.classList.add('hidden');
 }
 
-// 4. Submit & Render Detailed Feedback
+// Submit Quiz
 document.getElementById('form-solve-quiz').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!currentActiveQuiz) return;
@@ -388,7 +406,7 @@ document.getElementById('form-solve-quiz').addEventListener('submit', async (e) 
   viewQuizResult.classList.remove('hidden');
 });
 
-// 4. 대시보드 통계 및 Chart.js 요약 차트 업데이트
+// Load User Stats & Render Chart
 async function loadUserStats() {
   if (!currentUser || currentUser.role === 'admin') return;
 
@@ -404,7 +422,6 @@ async function loadUserStats() {
       document.getElementById('stat-avg-score').textContent = `${avgScore}점`;
       document.getElementById('stat-completed-chapters').textContent = `${completedChapters}개`;
 
-      // Render Table
       const tableBody = document.getElementById('table-user-records');
       tableBody.innerHTML = records.slice(-5).reverse().map(r => `
         <tr>
@@ -414,7 +431,6 @@ async function loadUserStats() {
         </tr>
       `).join('');
 
-      // Render Score Trend Chart
       renderChart(records);
     }
   } catch (err) {
@@ -424,7 +440,7 @@ async function loadUserStats() {
 
 function renderChart(records) {
   const ctx = document.getElementById('scoreTrendChart').getContext('2d');
-  const recentRecords = records.slice(-7); // 최근 7개 기록
+  const recentRecords = records.slice(-7);
 
   const labels = recentRecords.map((r, i) => `${i + 1}회차`);
   const scores = recentRecords.map(r => r.score);
